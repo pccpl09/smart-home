@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="description" content="คู่มือภาษาไทยและอังกฤษสำหรับตัวอย่าง Raspberry Pi Pico W และ ESP32 ใช้งาน MQTT">
+  <title>Pico W &amp; ESP32 MQTT Guide | คู่มือ Pico W และ ESP32</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, "Noto Sans Thai", system-ui, sans-serif;
+      background: #0b1020;
+      color: #eef2ff;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --muted: #a7b2cc;
+      --border: #293650;
+      --panel: #121a2e;
+      --accent: #70a5ff;
+      --green: #94f0c2;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(ellipse at 12% 0%, #1a2c51 0, transparent 34rem),
+        radial-gradient(ellipse at 92% 38%, #20204a 0, transparent 32rem),
+        #0b1020;
+    }
+    a { color: #9dc2ff; }
+    a:hover { color: #d3e2ff; }
+    code {
+      padding: .12rem .38rem;
+      border: 1px solid #293650;
+      border-radius: .35rem;
+      background: #0b1222;
+      color: #b6d2ff;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    .shell { width: min(1000px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 52px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0 24px; }
+    .brand { color: #eef2ff; font-weight: 750; letter-spacing: .02em; text-decoration: none; }
+    .brand span { color: #8eb6ff; }
+    nav { display: flex; flex-wrap: wrap; gap: 16px; }
+    nav a { color: var(--muted); font-size: .9rem; text-decoration: none; }
+    .hero { padding: 54px 0 38px; }
+    .eyebrow { margin: 0 0 12px; color: #8eb6ff; font-size: .78rem; font-weight: 750; letter-spacing: .15em; text-transform: uppercase; }
+    h1 { max-width: 850px; margin: 0; font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1.16; letter-spacing: -.04em; }
+    h1 span { display: block; margin-top: 8px; color: #a7b2cc; font-size: .58em; font-weight: 550; letter-spacing: -.02em; }
+    .intro { max-width: 780px; margin: 20px 0 0; color: var(--muted); font-size: 1.08rem; line-height: 1.8; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 25px; }
+    .button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: 0 17px; border: 1px solid #4774bb; border-radius: 10px; background: #28559a; color: white; font-weight: 700; text-decoration: none; }
+    .button.secondary { border-color: var(--border); background: #121a2e; color: #dce5f8; }
+    section { scroll-margin-top: 20px; margin-top: 22px; padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(145deg, #151e33eb, #101729ed); box-shadow: 0 18px 50px #00000020; }
+    h2 { margin: 0 0 6px; font-size: 1.35rem; letter-spacing: -.02em; }
+    h2 + .translation { margin-top: 0; }
+    h3 { margin: 0; font-size: 1.02rem; }
+    p { line-height: 1.7; }
+    .translation { margin: 4px 0 16px; color: var(--muted); }
+    .translation p { margin: 4px 0; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .item { padding: 17px; border: 1px solid #293650; border-radius: 13px; background: #0e1628aa; }
+    .item p { margin: 8px 0 0; color: var(--muted); }
+    .item p + p { margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { padding: 12px; border-bottom: 1px solid #293650; text-align: left; }
+    th { color: #d9e4fa; font-size: .9rem; }
+    td { color: var(--muted); }
+    ol { margin: 14px 0 0; padding-left: 1.4rem; }
+    li { padding: 0 0 14px 6px; line-height: 1.75; }
+    li:last-child { padding-bottom: 0; }
+    li p { margin: 3px 0; }
+    .notice { margin-top: 16px; padding: 15px 17px; border: 1px solid #796234; border-radius: 12px; background: #362a124d; color: #f5d894; line-height: 1.7; }
+    .notice p { margin: 4px 0; }
+    .safe { border-color: #315d50; background: #16392d55; color: var(--green); }
+    .topics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .topic-card { min-width: 0; padding: 16px; border: 1px solid #293650; border-radius: 12px; }
+    .topic-card h3 { margin-bottom: 10px; }
+    .topic-card p { margin: 7px 0; color: var(--muted); }
+    footer { padding: 26px 4px 0; color: #8390aa; font-size: .9rem; line-height: 1.7; }
+    footer p { margin: 4px 0; }
+    @media (max-width: 680px) {
+      .shell { width: min(100% - 24px, 1000px); padding-top: 14px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      nav { gap: 12px; }
+      .hero { padding-top: 38px; }
+      section { padding: 19px; }
+      .grid, .topics { grid-template-columns: 1fr; }
+      th, td { padding: 10px 7px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="#top">IoT <span>Board Lab</span></a>
+      <nav aria-label="Main navigation">
+        <a href="#files">Files / ไฟล์</a>
+        <a href="#wiring">Wiring / วงจร</a>
+        <a href="#esp32">ESP32</a>
+        <a href="#setup">Setup / วิธีใช้</a>
+        <a href="#topics">MQTT</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <div class="hero">
+        <p class="eyebrow">Raspberry Pi Pico W · ESP32 · MQTT</p>
+        <h1>
+          ตัวอย่าง IoT สำหรับ Pico W / ESP32 / Arduino R4 WiFi
+          <span lang="en">IoT examples for Pico W and ESP32</span>
+        </h1>
+        <p class="intro" lang="th">เลือกตัวอย่างตามบอร์ดที่ใช้: Pico W ควบคุม LED 3 ช่องผ่าน Dashboard หรือ ESP32 อ่านค่า DHT22 และควบคุม LED ผ่าน MQTT</p>
+        <p class="intro" lang="en">Choose the example for your board: the Pico W controls three LEDs from a dashboard, while the ESP32 reads a DHT22 and controls an LED over MQTT.</p>
+        <div class="actions">
+          <a class="button" href="./dashboard_three_leds.html">เปิด Dashboard / Open dashboard</a>
+          <a class="button secondary" href="./pico_w_three_leds.py" download>ดาวน์โหลดโค้ด Pico W / Download Pico W code</a>
+          <a class="button secondary" href="./esp32_dht22_mqtt.ino" download>ดาวน์โหลดโค้ด ESP32 / Download ESP32 code</a>
+        </div>
+      </div>
+
+      <section id="files">
+        <h2>ไฟล์ตัวอย่าง <span lang="en">Example files</span></h2>
+        <div class="translation">
+          <p lang="th">เลือกโปรแกรมสำหรับบอร์ดที่ใช้ ตัวอย่าง Pico W ทำงานร่วมกับ Dashboard ส่วนตัวอย่าง ESP32 อ่านเซนเซอร์และควบคุม LED ผ่าน MQTT</p>
+          <p lang="en">Choose the sketch for your board. The Pico W example works with the dashboard, while the ESP32 example reads a sensor and controls an LED over MQTT.</p>
+        </div>
+        <div class="grid">
+          <article class="item">
+            <h3><a href="./pico_w_three_leds.py">pico_w_three_leds.py</a></h3>
+            <p lang="th">โปรแกรม MicroPython สำหรับ Pico W เชื่อมต่อ Wi-Fi, สมัครรับคำสั่ง MQTT และเผยแพร่สถานะ LED</p>
+            <p lang="en">MicroPython program for the Pico W. It connects to Wi-Fi, subscribes to MQTT commands, and publishes LED status.</p>
+          </article>
+          <article class="item">
+            <h3><a href="./dashboard_three_leds.html">dashboard_three_leds.html</a></h3>
+            <p lang="th">หน้าเว็บ MQTT.js สำหรับเชื่อมต่อ Broker และควบคุม LED ทั้งสามช่อง</p>
+            <p lang="en">MQTT.js web dashboard for connecting to the broker and controlling all three LEDs.</p>
+          </article>
+          <article class="item">
+            <h3><a href="./esp32_dht22_mqtt.ino">esp32_dht22_mqtt.ino</a></h3>
+            <p lang="th">ตัวอย่าง Arduino สำหรับ ESP32 + DHT22 ส่งอุณหภูมิ/ความชื้น และรับคำสั่งเปิด–ปิด LED ผ่าน MQTT</p>
+            <p lang="en">Arduino example for ESP32 + DHT22. It publishes temperature/humidity and receives MQTT commands to switch an LED.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="wiring">
+        <h2>การต่อวงจร <span lang="en">Wiring</span></h2>
+        <div class="translation">
+          <p lang="th">ต่อ GPIO ผ่านตัวต้านทาน 220–330 โอห์มเข้าขา Anode ของ LED และต่อขา Cathode ลง GND</p>
+          <p lang="en">Connect each GPIO through a 220–330 ohm resistor to the LED anode; connect the cathode to GND.</p>
+        </div>
+        <table>
+          <thead><tr><th>LED</th><th>ขา Pico W <span lang="en">Pico W GPIO</span></th></tr></thead>
+          <tbody>
+            <tr><td>LED 1</td><td><code>GP15</code></td></tr>
+            <tr><td>LED 2</td><td><code>GP14</code></td></tr>
+            <tr><td>LED 3</td><td><code>GP13</code></td></tr>
+          </tbody>
+        </table>
+        <div class="notice safe">
+          <p lang="th">ใช้วงจรแรงดันต่ำเท่านั้น ห้ามต่อไฟบ้านหรือขดลวดรีเลย์เข้ากับขา GPIO โดยตรง</p>
+          <p lang="en">Use low-voltage circuits only. Never connect mains voltage or a relay coil directly to a GPIO pin.</p>
+        </div>
+      </section>
+
+      <section id="esp32">
+        <h2>ตัวอย่าง ESP32 + DHT22 <span lang="en">ESP32 + DHT22 example</span></h2>
+        <div class="translation">
+          <p lang="th">โค้ด Arduino เชื่อมต่อ Wi-Fi และ MQTT, ส่งอุณหภูมิ/ความชื้นทุก 3 วินาที และสมัครรับคำสั่งควบคุม LED ที่ GPIO2</p>
+          <p lang="en">The Arduino sketch connects to Wi-Fi and MQTT, publishes temperature/humidity every 3 seconds, and subscribes to LED commands on GPIO2.</p>
+        </div>
+        <div class="grid">
+          <article class="item">
+            <h3>การต่อ DHT22 <span lang="en">DHT22 wiring</span></h3>
+            <p lang="th">ต่อ DATA เข้าขา <code>GPIO4</code>, VCC เข้ากับไฟเลี้ยงตามรุ่นเซนเซอร์ และ GND เข้ากับ GND ของบอร์ด หากเป็น DHT22 แบบตัวเซนเซอร์เปล่า ให้ใช้ตัวต้านทาน pull-up ระหว่าง DATA กับ VCC ตามวงจรของโมดูล</p>
+            <p lang="en">Connect DATA to <code>GPIO4</code>, VCC to the supply supported by your sensor module, and GND to board ground. For a bare DHT22 sensor, add a pull-up resistor between DATA and VCC as required by its circuit.</p>
+          </article>
+          <article class="item">
+            <h3>LED และ Topic <span lang="en">LED and topics</span></h3>
+            <p lang="th">ตัวอย่างตั้งค่า LED ที่ <code>GPIO2</code> (โดยทั่วไปคือ LED บนบอร์ดบางรุ่น) และรับ <code>ON</code>/<code>OFF</code> จาก <code>classroom/&lt;username&gt;/control/led</code></p>
+            <p lang="en">The sketch uses <code>GPIO2</code> for the LED (often the onboard LED on some boards) and accepts <code>ON</code>/<code>OFF</code> on <code>classroom/&lt;username&gt;/control/led</code>.</p>
+            <p lang="th">ข้อมูลเซนเซอร์ JSON ส่งไปที่ <code>classroom/&lt;username&gt;/sensor/temp</code></p>
+            <p lang="en">Sensor JSON is published to <code>classroom/&lt;username&gt;/sensor/temp</code>.</p>
+          </article>
+        </div>
+        <h3 style="margin-top: 20px">ติดตั้งและอัปโหลด <span lang="en">Install and upload</span></h3>
+        <ol>
+          <li>
+            <p lang="th">ติดตั้ง ESP32 board support ใน Arduino IDE และไลบรารี <code>PubSubClient</code>, <code>DHT sensor library</code> ของ Adafruit และ <code>Adafruit Unified Sensor</code></p>
+            <p lang="en">Install ESP32 board support in Arduino IDE, plus <code>PubSubClient</code>, Adafruit's <code>DHT sensor library</code>, and <code>Adafruit Unified Sensor</code>.</p>
+          </li>
+          <li>
+            <p lang="th">เปิด <a href="./esp32_dht22_mqtt.ino">esp32_dht22_mqtt.ino</a> แล้วแก้ <code>WIFI_SSID</code>, <code>WIFI_PASSWORD</code>, <code>STUDENT_USERNAME</code> และ <code>MQTT_PASSWORD</code></p>
+            <p lang="en">Open <a href="./esp32_dht22_mqtt.ino">esp32_dht22_mqtt.ino</a> and set <code>WIFI_SSID</code>, <code>WIFI_PASSWORD</code>, <code>STUDENT_USERNAME</code>, and <code>MQTT_PASSWORD</code>.</p>
+          </li>
+          <li>
+            <p lang="th">เลือกบอร์ด ESP32 และพอร์ตอนุกรมที่ถูกต้อง จากนั้นอัปโหลดและเปิด Serial Monitor ที่ <code>115200</code> baud</p>
+            <p lang="en">Select the correct ESP32 board and serial port, upload the sketch, and open Serial Monitor at <code>115200</code> baud.</p>
+          </li>
+        </ol>
+        <div class="notice">
+          <p lang="th">Dashboard ในหน้านี้สั่ง LED 3 ช่องของ Pico W ผ่าน Topic <code>control/led/1</code>–<code>/3</code> ส่วนตัวอย่าง ESP32 รับคำสั่ง LED เดียวที่ Topic <code>control/led</code> จึงใช้ปุ่มใน Dashboard นี้ควบคุม ESP32 โดยตรงไม่ได้</p>
+          <p lang="en">The dashboard on this page controls the Pico W's three LEDs using <code>control/led/1</code>–<code>/3</code>. The ESP32 example listens on the single topic <code>control/led</code>, so this dashboard does not directly control the ESP32 LED.</p>
+        </div>
+      </section>
+
+      <section id="setup">
+        <h2>ติดตั้งและเริ่มใช้งาน <span lang="en">Configure and run</span></h2>
+        <ol>
+          <li>
+            <p lang="th">ติดตั้งเฟิร์มแวร์ MicroPython สำหรับ Raspberry Pi Pico W</p>
+            <p lang="en">Install MicroPython firmware for the Raspberry Pi Pico W.</p>
+          </li>
+          <li>
+            <p lang="th">คัดลอก <code>umqtt/simple.py</code> จากแพ็กเกจ <code>micropython-lib</code> ไปยังบอร์ดที่ <code>/lib/umqtt/simple.py</code></p>
+            <p lang="en">Copy <code>umqtt/simple.py</code> from <code>micropython-lib</code> to the board at <code>/lib/umqtt/simple.py</code>.</p>
+          </li>
+          <li>
+            <p lang="th">แก้ค่า Wi-Fi, username และ MQTT password ใน <code>pico_w_three_leds.py</code></p>
+            <p lang="en">Set the Wi-Fi credentials, username, and MQTT password in <code>pico_w_three_leds.py</code>.</p>
+          </li>
+          <li>
+            <p lang="th">อัปโหลดไฟล์ไปยัง Pico W โดยตั้งชื่อเป็น <code>main.py</code></p>
+            <p lang="en">Upload the program to the Pico W as <code>main.py</code>.</p>
+          </li>
+          <li>
+            <p lang="th">เปิด Dashboard ในเบราว์เซอร์ กรอก username และ MQTT password เดียวกับในบอร์ด แล้วเชื่อมต่อ Broker <code>172.16.3.215</code></p>
+            <p lang="en">Open the dashboard in a browser. Enter the same username and MQTT password configured on the board, then connect to broker <code>172.16.3.215</code>.</p>
+          </li>
+        </ol>
+        <div class="notice">
+          <p lang="th">รหัสผ่าน SFTP สำหรับบัญชีทดสอบตรงกับ username (ตัวอย่าง <code>user1001</code>) ส่วนรหัสผ่าน MQTT เป็นรหัสสุ่มแยกต่างหาก ให้ขอจากผู้ดูแลระบบ</p>
+          <p lang="en">For test accounts, the SFTP password matches the username (for example, <code>user1001</code>). The MQTT password is a separate random credential; request it from the administrator.</p>
+        </div>
+      </section>
+
+      <section id="topics">
+        <h2>MQTT Topics</h2>
+        <div class="translation">
+          <p lang="th">แต่ละบัญชีใช้ Topic ของตนเอง โดย Dashboard ส่งคำสั่ง และ Pico W ส่งสถานะกลับ</p>
+          <p lang="en">Each account uses its own topics. The dashboard publishes commands, and the Pico W publishes status updates.</p>
+        </div>
+        <div class="topics">
+          <article class="topic-card">
+            <h3>คำสั่งควบคุม <span lang="en">Commands</span></h3>
+            <p><code>classroom/&lt;username&gt;/control/led/1</code></p>
+            <p><code>classroom/&lt;username&gt;/control/led/2</code></p>
+            <p><code>classroom/&lt;username&gt;/control/led/3</code></p>
+            <p lang="th">ส่งค่า <code>ON</code> หรือ <code>OFF</code> ไปยัง LED แต่ละดวง</p>
+            <p lang="en">Send <code>ON</code> or <code>OFF</code> to each LED.</p>
+          </article>
+          <article class="topic-card">
+            <h3>สถานะ LED <span lang="en">LED status</span></h3>
+            <p><code>classroom/&lt;username&gt;/status/led/1</code></p>
+            <p><code>classroom/&lt;username&gt;/status/led/2</code></p>
+            <p><code>classroom/&lt;username&gt;/status/led/3</code></p>
+            <p lang="th">Pico W ส่งสถานะล่าสุดแบบ retained เพื่อให้ Dashboard อ่านค่าได้ทันที</p>
+            <p lang="en">The Pico W publishes retained status so the dashboard can read the latest state immediately.</p>
+          </article>
+        </div>
+        <div class="notice safe">
+          <p lang="th">สิทธิ์ MQTT จำกัดตาม ACL ให้แต่ละบัญชีเข้าถึง Topic ของตนเองเท่านั้น</p>
+          <p lang="en">MQTT ACLs restrict each account to its own topics.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p lang="th">เครือข่ายทดสอบนี้ใช้ MQTT พอร์ต 1883 และ WebSocket แบบไม่เข้ารหัสที่พอร์ต 9001 ใช้เฉพาะบน LAN ที่เชื่อถือได้</p>
+      <p lang="en">The classroom test broker uses unencrypted MQTT on port 1883 and WebSocket on port 9001. Use it only on a trusted LAN.</p>
+      <p><a href="./README.md">อ่าน README / Read the README</a></p>
+    </footer>
+  </div>
+</body>
+</html>
