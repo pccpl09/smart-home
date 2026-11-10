@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Classroom Three-LED Controller</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #080b16;
+      color: #f4f7ff;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --muted: #9aa8c3;
+      --line: #ffffff20;
+      --glass: linear-gradient(145deg, #ffffff12, #ffffff05 52%, #8f7bff0d);
+      --cyan: #66f1e0;
+      --violet: #a789ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(ellipse at 12% 8%, #603dba38, transparent 34rem),
+        radial-gradient(ellipse at 88% 18%, #0ba7a52b, transparent 32rem),
+        linear-gradient(145deg, #080b16, #0d1222 56%, #090c18);
+    }
+    body::before, body::after {
+      position: fixed;
+      z-index: 0;
+      pointer-events: none;
+      content: "";
+    }
+    body::before {
+      inset: -30%;
+      background:
+        radial-gradient(ellipse at 30% 42%, #8b5cf622, transparent 24%),
+        radial-gradient(ellipse at 74% 58%, #22d3c51a, transparent 22%);
+      filter: blur(35px);
+      animation: aurora-drift 18s ease-in-out infinite alternate;
+    }
+    body::after {
+      inset: 0;
+      opacity: .13;
+      background-image: linear-gradient(#ffffff08 1px, transparent 1px), linear-gradient(90deg, #ffffff08 1px, transparent 1px);
+      background-size: 52px 52px;
+      mask-image: linear-gradient(to bottom, black, transparent 76%);
+    }
+    button, input { font: inherit; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; }
+    .shell { position: relative; z-index: 1; width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 64px 0 34px; }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 30px; animation: enter-up .7s both; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 14px;
+      padding: 8px 12px;
+      border: 1px solid #a789ff35;
+      border-radius: 999px;
+      background: #a789ff12;
+      color: #c6b6ff;
+      font-size: .7rem;
+      font-weight: 750;
+      letter-spacing: .17em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); content: ""; }
+    h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.35rem); letter-spacing: -.055em; line-height: 1.08; }
+    .subtitle { margin: 13px 0 0; color: var(--muted); font-size: .98rem; }
+    .connection {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+      padding: 11px 16px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #ffffff0b;
+      box-shadow: inset 0 1px #ffffff12, 0 12px 30px #0003;
+      backdrop-filter: blur(16px);
+      color: #b7c2d8;
+      font-size: .83rem;
+      font-weight: 650;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #72809a; box-shadow: 0 0 0 4px #72809a1c; }
+    .connection[data-state="online"] { color: #a1f7da; }
+    .connection[data-state="online"] .dot { background: #50edb0; box-shadow: 0 0 0 4px #50edb01c, 0 0 18px #50edb0; animation: status-pulse 2s ease-in-out infinite; }
+    .connection[data-state="connecting"] { color: #ffe0a2; }
+    .connection[data-state="connecting"] .dot { background: #ffc96e; box-shadow: 0 0 0 4px #ffc96e20; animation: status-pulse 1s ease-in-out infinite; }
+    .led-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; perspective: 1200px; }
+    .card {
+      position: relative;
+      overflow: hidden;
+      padding: 25px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--glass);
+      box-shadow: inset 0 1px #ffffff1b, 0 22px 65px #0004, 0 2px 10px #0002;
+      backdrop-filter: blur(24px) saturate(135%);
+    }
+    .card::before {
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #ffffffa8, #a789ff91, transparent);
+      content: "";
+    }
+    .led-card {
+      display: grid;
+      min-height: 320px;
+      justify-items: center;
+      align-content: center;
+      gap: 17px;
+      text-align: center;
+      isolation: isolate;
+      animation: enter-up .75s both;
+      transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease, box-shadow .35s ease;
+    }
+    .led-card:nth-child(2) { animation-delay: .12s; }
+    .led-card:nth-child(3) { animation-delay: .24s; }
+    .led-card::after {
+      position: absolute;
+      z-index: -1;
+      top: -110px;
+      left: 50%;
+      width: 250px;
+      height: 230px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #9b7aff20, transparent 68%);
+      content: "";
+      transform: translateX(-50%);
+      transition: background .35s ease, transform .6s ease;
+    }
+    .led-card:hover { transform: translateY(-7px) rotateX(2deg); border-color: #c0b0ff55; box-shadow: inset 0 1px #ffffff28, 0 30px 75px #0005, 0 0 35px #987cff10; }
+    .led-card:hover::after { background: radial-gradient(circle, #9b7aff36, transparent 68%); transform: translateX(-50%) scale(1.2); }
+    .led-card h2 { margin: 0; color: #e4e9f8; font-size: 1.05rem; letter-spacing: .02em; }
+    .history { margin-top: 20px; padding: 26px; animation: enter-up .8s .28s both; }
+    .history-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+    .history-heading h2 { margin: 0; font-size: 1.08rem; letter-spacing: -.015em; }
+    .history-heading p { margin: 7px 0 0; color: #8794ac; font-size: .82rem; }
+    .history-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; }
+    .history-button { min-height: 40px; padding: 0 15px; border: 1px solid #ffffff24; border-radius: 11px; background: #ffffff0b; color: #e8edfb; font-size: .8rem; font-weight: 700; cursor: pointer; transition: background .2s ease, transform .2s ease; }
+    .history-button:hover:not(:disabled) { transform: translateY(-1px); background: #ffffff16; }
+    .history-button:disabled { cursor: not-allowed; opacity: .42; }
+    .history-canvas-wrap { position: relative; height: 300px; margin-top: 22px; }
+    #history-chart { display: block; width: 100%; height: 100%; }
+    .history-legend { display: flex; flex-wrap: wrap; gap: 17px; margin-top: 13px; color: #9aa8c3; font-size: .77rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+    .history-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+    .history-stat { padding: 12px 14px; border: 1px solid #ffffff12; border-radius: 13px; background: #ffffff06; color: #9aa8c3; font-size: .75rem; }
+    .history-stat strong { display: block; margin-top: 5px; color: #edf2ff; font-size: .9rem; font-variant-numeric: tabular-nums; }
+    .history-message { min-height: 1.2em; margin: 13px 0 0; color: #ffd18a; font-size: .82rem; }
+    .ldr-history { margin-top: 26px; padding-top: 22px; border-top: 1px solid #ffffff12; }
+    .ldr-history-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+    .ldr-history-heading h3 { margin: 0; color: #e4e9f8; font-size: .96rem; }
+    .ldr-history-heading p { margin: 6px 0 0; color: #8794ac; font-size: .75rem; }
+    .ldr-reading { color: #9aa8c3; font-size: .76rem; text-align: right; }
+    .ldr-reading strong { display: block; color: #66f1e0; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+    .ldr-chart-wrap { position: relative; height: 190px; margin-top: 15px; }
+    #ldr-chart { display: block; width: 100%; height: 100%; }
+    .bulb {
+      position: relative;
+      display: grid;
+      width: 108px;
+      height: 108px;
+      place-items: center;
+      border: 1px solid #ffffff26;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 27%, #d8def32c, #9ba8cc0a 42%, #080b164a 76%);
+      box-shadow: inset 0 2px 7px #ffffff20, inset 0 -12px 24px #0005, 0 14px 28px #0003;
+      color: #8794ad;
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      transition: color .45s ease, background .45s ease, border-color .45s ease, box-shadow .45s ease, transform .45s cubic-bezier(.2,.8,.2,1);
+    }
+    .bulb::before {
+      position: absolute;
+      top: 13px;
+      left: 22px;
+      width: 30px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ffffff38;
+      filter: blur(5px);
+      content: "";
+      transform: rotate(-35deg);
+    }
+    .bulb::after {
+      position: absolute;
+      inset: -10px;
+      border: 1px solid #ffffff0c;
+      border-radius: inherit;
+      content: "";
+      transition: border-color .45s ease, box-shadow .45s ease;
+    }
+    .bulb[data-on="true"] {
+      border-color: #ffeab8;
+      background: radial-gradient(circle at 34% 26%, #fffbe7, #ffe480 28%, #ffad37 68%, #e87925);
+      color: #63340d;
+      box-shadow: inset 0 3px 8px #ffffffc7, inset 0 -10px 20px #de762b77, 0 0 22px #ffc24c99, 0 0 60px #ffae3566;
+      transform: scale(1.04);
+    }
+    .bulb[data-on="true"]::after { border-color: #ffc95345; box-shadow: 0 0 28px #ffbf4644; animation: light-ring 2.4s ease-out infinite; }
+    .led-state { margin: 0; min-height: 1.2em; color: #aab6cd; font-size: .86rem; }
+    .toggle {
+      position: relative;
+      width: 66px;
+      height: 36px;
+      padding: 0;
+      border: 1px solid #ffffff1c;
+      border-radius: 999px;
+      background: linear-gradient(145deg, #3c465c, #20283a);
+      box-shadow: inset 0 2px 5px #0005, 0 4px 10px #0002;
+      cursor: pointer;
+      transition: background .3s ease, box-shadow .3s ease, opacity .2s ease;
+    }
+    .toggle::after {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 26px;
+      height: 26px;
+      border: 1px solid #ffffffad;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #fff, #dce5f6);
+      box-shadow: 0 2px 8px #0005, inset 0 1px #fff;
+      content: "";
+      transition: transform .3s cubic-bezier(.2,.8,.2,1);
+    }
+    .toggle[aria-checked="true"] { background: linear-gradient(110deg, #5f70ff, #38d8c6); box-shadow: inset 0 1px 5px #0003, 0 0 18px #59dbc544; }
+    .toggle[aria-checked="true"]::after { transform: translateX(30px); }
+    .toggle:disabled { cursor: not-allowed; opacity: .42; }
+    .config { margin-top: 20px; padding: 26px; animation: enter-up .8s .28s both; }
+    .config h2 { margin: 0 0 20px; font-size: 1.08rem; letter-spacing: -.015em; }
+    .fields { display: grid; grid-template-columns: 1fr 1fr 1.2fr auto; align-items: end; gap: 14px; }
+    label { display: grid; gap: 8px; color: #c0c9db; font-size: .8rem; font-weight: 650; }
+    input {
+      width: 100%;
+      min-height: 46px;
+      padding: 0 13px;
+      border: 1px solid #ffffff1c;
+      border-radius: 12px;
+      outline: none;
+      background: #080c18a8;
+      box-shadow: inset 0 2px 6px #0004, 0 1px #ffffff08;
+      color: #f4f7ff;
+      transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    input:focus { border-color: #83caffaa; background: #0d1424; box-shadow: inset 0 2px 6px #0003, 0 0 0 3px #64b8ff1b, 0 0 22px #64b8ff12; }
+    .primary {
+      position: relative;
+      min-height: 46px;
+      overflow: hidden;
+      padding: 0 20px;
+      border: 1px solid #ffffff4a;
+      border-radius: 12px;
+      background: linear-gradient(115deg, #7a68ff, #4a9eff 55%, #3dd9c7);
+      box-shadow: inset 0 1px #ffffff80, 0 8px 22px #5c7aff35;
+      color: white;
+      font-weight: 750;
+      cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+    }
+    .primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: inset 0 1px #ffffffa6, 0 12px 28px #5c7aff55; }
+    .primary:active:not(:disabled) { transform: translateY(0) scale(.98); }
+    .primary:disabled { cursor: wait; opacity: .65; }
+    .message { min-height: 1.3em; margin: 14px 0 0; color: #ffd18a; font-size: .86rem; }
+    .field-hint { margin: -2px 0 0; color: #8794ac; font-size: .72rem; font-weight: 400; line-height: 1.5; }
+    footer { margin-top: 18px; color: #8794ac; font-size: .78rem; line-height: 1.7; }
+    @keyframes aurora-drift { from { transform: translate3d(-2%, -1%, 0) rotate(-4deg); } to { transform: translate3d(2%, 1%, 0) rotate(4deg); } }
+    @keyframes enter-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes status-pulse { 50% { opacity: .65; } }
+    @keyframes light-ring { 0% { opacity: .65; transform: scale(.96); } 100% { opacity: 0; transform: scale(1.22); } }
+    @media (max-width: 820px) {
+      .shell { width: min(720px, calc(100% - 32px)); padding-top: 42px; }
+      .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .primary { min-height: 46px; }
+    }
+    @media (max-width: 620px) {
+      .shell { padding: 30px 0 24px; }
+      .header { align-items: flex-start; flex-direction: column; gap: 17px; margin-bottom: 22px; }
+      .subtitle { max-width: 34ch; font-size: .9rem; line-height: 1.6; }
+      .led-grid { grid-template-columns: 1fr; gap: 13px; }
+      .led-card { min-height: 280px; }
+      .fields { grid-template-columns: 1fr; }
+      .primary { width: 100%; }
+      .config { padding: 21px; }
+      .history { padding: 21px; }
+      .history-heading { flex-direction: column; }
+      .history-actions { width: 100%; }
+      .history-button { flex: 1; }
+      .history-canvas-wrap { height: 250px; margin-inline: -8px; }
+      .history-summary { grid-template-columns: 1fr; }
+      .ldr-history-heading { align-items: flex-start; }
+      .ldr-chart-wrap { height: 170px; margin-inline: -8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="header">
+      <div>
+        <p class="eyebrow">Classroom / Internet of Things</p>
+        <h1>ควบคุม LED 3 ช่อง</h1>
+        <p class="subtitle">สั่งงานและรับสถานะยืนยันจาก Raspberry Pi Pico W</p>
+      </div>
+      <div class="connection" id="connection-status" data-state="offline" role="status" aria-live="polite">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="connection-label">Offline</span>
+      </div>
+    </header>
+
+    <section class="led-grid" aria-label="ตัวควบคุม LED">
+      <article class="card led-card" data-led="1">
+        <h2>LED 1</h2>
+        <div class="bulb" id="bulb-1" data-on="false" aria-hidden="true">OFF</div>
+        <p class="led-state" id="state-1" aria-live="polite">รอสถานะจากบอร์ด</p>
+        <button class="toggle" type="button" role="switch" aria-checked="false" aria-label="สั่งเปิดหรือปิด LED 1" data-led="1" disabled></button>
+      </article>
+      <article class="card led-card" data-led="2">
+        <h2>LED 2</h2>
+        <div class="bulb" id="bulb-2" data-on="false" aria-hidden="true">OFF</div>
+        <p class="led-state" id="state-2" aria-live="polite">รอสถานะจากบอร์ด</p>
+        <button class="toggle" type="button" role="switch" aria-checked="false" aria-label="สั่งเปิดหรือปิด LED 2" data-led="2" disabled></button>
+      </article>
+      <article class="card led-card" data-led="3">
+        <h2>LED 3</h2>
+        <div class="bulb" id="bulb-3" data-on="false" aria-hidden="true">OFF</div>
+        <p class="led-state" id="state-3" aria-live="polite">รอสถานะจากบอร์ด</p>
+        <button class="toggle" type="button" role="switch" aria-checked="false" aria-label="สั่งเปิดหรือปิด LED 3" data-led="3" disabled></button>
+      </article>
+    </section>
+
+    <section class="card history" aria-labelledby="history-heading">
+      <div class="history-heading">
+        <div>
+          <h2 id="history-heading">ประวัติการทำงาน</h2>
+          <p>เหตุการณ์เปลี่ยนสถานะ LED ย้อนหลัง 7 วัน</p>
+        </div>
+        <div class="history-actions">
+          <button class="history-button" id="refresh-history" type="button" disabled>รีเฟรชกราฟ</button>
+          <button class="history-button" id="download-history" type="button" disabled>ดาวน์โหลด CSV</button>
+        </div>
+      </div>
+      <div class="history-canvas-wrap">
+        <canvas id="history-chart" role="img" aria-label="กราฟประวัติการเปลี่ยนสถานะ LED 3 ช่องในช่วง 7 วันล่าสุด"></canvas>
+      </div>
+      <div class="history-legend" aria-label="คำอธิบายสถานะ">
+        <span class="legend-item"><span class="legend-dot" style="background:#66f1e0"></span>เปิด (ON)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#a789ff"></span>ปิด (OFF)</span>
+      </div>
+      <div class="history-summary" id="history-summary" aria-live="polite"></div>
+      <div class="ldr-history">
+        <div class="ldr-history-heading">
+          <div>
+            <h3>ประวัติระดับแสงจาก LDR</h3>
+            <p>ค่า ADC ดิบ 0–65,535 · อ่านทุก 3 วินาที · ย้อนหลัง 7 วัน</p>
+          </div>
+          <div class="ldr-reading" aria-live="polite">
+            ค่าล่าสุด
+            <strong id="ldr-current">--</strong>
+            <span id="ldr-updated">รอข้อมูลจาก Pico W</span>
+          </div>
+        </div>
+        <div class="ldr-chart-wrap">
+          <canvas id="ldr-chart" role="img" aria-label="กราฟค่าที่อ่านได้จาก LDR ย้อนหลัง 7 วัน"></canvas>
+        </div>
+      </div>
+      <p class="history-message" id="history-message" aria-live="polite">เชื่อมต่อ MQTT เพื่อดูประวัติ</p>
+    </section>
+
+    <section class="card config" aria-labelledby="config-heading">
+      <h2 id="config-heading">การเชื่อมต่อ MQTT</h2>
+      <form id="connection-form">
+        <div class="fields">
+          <label for="broker-host">Broker host
+            <input id="broker-host" name="broker" value="172.16.3.215" required>
+          </label>
+          <label for="student-username">Username
+            <input id="student-username" name="username" value="user1001" autocomplete="username" required>
+          </label>
+          <label for="mqtt-password">MQTT password
+            <input id="mqtt-password" name="password" type="password" autocomplete="current-password" required>
+            <span class="field-hint">ระบบทดสอบนี้ใช้รหัสผ่านเดียวกับ username / For this test system, the password matches the username.</span>
+          </label>
+          <button class="primary" id="connect-button" type="submit">เชื่อมต่อ</button>
+        </div>
+      </form>
+      <p class="message" id="message" aria-live="polite"></p>
+    </section>
+
+    <footer>
+      เปลี่ยนค่า SSID, Wi-Fi password, username และ MQTT password ในไฟล์ Pico W ก่อนใช้งาน
+      การเชื่อมต่อ ws:// และ MQTT port 1883 ไม่เข้ารหัส ให้ใช้เฉพาะเครือข่ายทดสอบที่เชื่อถือได้
+    </footer>
+  </main>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    "use strict";
+
+    const form = document.querySelector("#connection-form");
+    const hostInput = document.querySelector("#broker-host");
+    const usernameInput = document.querySelector("#student-username");
+    const passwordInput = document.querySelector("#mqtt-password");
+    const connectButton = document.querySelector("#connect-button");
+    const connectionStatus = document.querySelector("#connection-status");
+    const connectionLabel = document.querySelector("#connection-label");
+    const message = document.querySelector("#message");
+    const historyMessage = document.querySelector("#history-message");
+    const historyCanvas = document.querySelector("#history-chart");
+    const ldrCanvas = document.querySelector("#ldr-chart");
+    const ldrCurrent = document.querySelector("#ldr-current");
+    const ldrUpdated = document.querySelector("#ldr-updated");
+    const historySummary = document.querySelector("#history-summary");
+    const refreshHistoryButton = document.querySelector("#refresh-history");
+    const downloadHistoryButton = document.querySelector("#download-history");
+    const ledStates = new Map([["1", null], ["2", null], ["3", null]]);
+    let activeClient = null;
+    let activeTopics = null;
+    let historyCredentials = null;
+    let historyEvents = [];
+    let historyRefreshTimer = null;
+    let historyRequestVersion = 0;
+
+    function encodeBasicCredentials(username, password) {
+      const bytes = new TextEncoder().encode(`${username}:${password}`);
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return `Basic ${btoa(binary)}`;
+    }
+
+    function renderHistoryChart() {
+      const bounds = historyCanvas.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      const ratio = window.devicePixelRatio || 1;
+      historyCanvas.width = Math.round(bounds.width * ratio);
+      historyCanvas.height = Math.round(bounds.height * ratio);
+      const context = historyCanvas.getContext("2d");
+      context.scale(ratio, ratio);
+      context.clearRect(0, 0, bounds.width, bounds.height);
+
+      const left = 56;
+      const right = bounds.width - 14;
+      const top = 22;
+      const bottom = bounds.height - 34;
+      const laneHeight = (bottom - top) / 3;
+      const end = new Date();
+      end.setHours(24, 0, 0, 0);
+      const start = new Date(end);
+      start.setDate(start.getDate() - 7);
+      const timeRange = end.getTime() - start.getTime();
+      const xForTime = (time) => left + (time - start.getTime()) / timeRange * (right - left);
+      const colors = { ON: "#66f1e0", OFF: "#a789ff" };
+
+      context.font = "12px Inter, system-ui, sans-serif";
+      context.textBaseline = "middle";
+      for (let index = 0; index < 3; index += 1) {
+        const centerY = top + laneHeight * (index + 0.5);
+        context.fillStyle = "#aab6cd";
+        context.textAlign = "left";
+        context.fillText(`LED ${index + 1}`, 0, centerY);
+        context.strokeStyle = "#ffffff18";
+        context.setLineDash([3, 5]);
+        context.beginPath();
+        context.moveTo(left, centerY);
+        context.lineTo(right, centerY);
+        context.stroke();
+      }
+
+      context.setLineDash([]);
+      context.textAlign = "center";
+      context.textBaseline = "top";
+      context.fillStyle = "#8794ac";
+      const dateFormat = new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short" });
+      for (let index = 0; index <= 7; index += 1) {
+        const tick = new Date(start.getTime() + timeRange * index / 7);
+        const x = xForTime(tick.getTime());
+        context.strokeStyle = "#ffffff10";
+        context.beginPath();
+        context.moveTo(x, top);
+        context.lineTo(x, bottom);
+        context.stroke();
+        if (index < 7) context.fillText(dateFormat.format(tick), x, bottom + 12);
+      }
+
+      const eventsByLed = new Map([["1", []], ["2", []], ["3", []]]);
+      for (const event of historyEvents) {
+        const timestamp = new Date(event.timestamp).getTime();
+        const ledEvents = eventsByLed.get(event.led);
+        if (ledEvents && Number.isFinite(timestamp) && timestamp >= start.getTime() && timestamp <= end.getTime()) {
+          ledEvents.push({ ...event, time: timestamp });
+        }
+      }
+
+      let plottedEvents = 0;
+      for (const [led, events] of eventsByLed) {
+        events.sort((first, second) => first.time - second.time);
+        const centerY = top + laneHeight * (Number(led) - 0.5);
+        for (let index = 0; index < events.length; index += 1) {
+          const event = events[index];
+          const x = xForTime(event.time);
+          if (index > 0) {
+            const previous = events[index - 1];
+            context.strokeStyle = `${colors[previous.state]}88`;
+            context.lineWidth = 2;
+            context.beginPath();
+            context.moveTo(xForTime(previous.time), centerY);
+            context.lineTo(x, centerY);
+            context.stroke();
+          }
+          context.fillStyle = colors[event.state];
+          context.shadowColor = colors[event.state];
+          context.shadowBlur = 12;
+          context.beginPath();
+          context.arc(x, centerY, 5, 0, Math.PI * 2);
+          context.fill();
+          context.shadowBlur = 0;
+          plottedEvents += 1;
+        }
+      }
+
+      if (plottedEvents === 0) {
+        context.fillStyle = "#8794ac";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText("ยังไม่มีประวัติในช่วง 7 วันล่าสุด", (left + right) / 2, (top + bottom) / 2);
+      }
+    }
+
+    function renderHistorySummary() {
+      historySummary.replaceChildren();
+      for (const led of ["1", "2", "3"]) {
+        const events = historyEvents.filter((event) => event.type === "led" && event.led === led);
+        const onCount = events.filter((event) => event.state === "ON").length;
+        const offCount = events.filter((event) => event.state === "OFF").length;
+        const stat = document.createElement("div");
+        stat.className = "history-stat";
+        stat.textContent = `LED ${led}`;
+        const value = document.createElement("strong");
+        value.textContent = `เปิด ${onCount} ครั้ง · ปิด ${offCount} ครั้ง`;
+        stat.append(value);
+        historySummary.append(stat);
+      }
+    }
+
+    function setLdrReading(value, timestamp = new Date()) {
+      if (!Number.isInteger(value) || value < 0 || value > 65535) return;
+      ldrCurrent.textContent = value.toLocaleString("th-TH");
+      ldrUpdated.textContent = `ADC · ${timestamp.toLocaleTimeString("th-TH")}`;
+    }
+
+    function renderLdrChart() {
+      const bounds = ldrCanvas.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      const ratio = window.devicePixelRatio || 1;
+      ldrCanvas.width = Math.round(bounds.width * ratio);
+      ldrCanvas.height = Math.round(bounds.height * ratio);
+      const context = ldrCanvas.getContext("2d");
+      context.scale(ratio, ratio);
+      context.clearRect(0, 0, bounds.width, bounds.height);
+
+      const left = 54;
+      const right = bounds.width - 12;
+      const top = 14;
+      const bottom = bounds.height - 25;
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - 6);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      const timeRange = end.getTime() - start.getTime();
+      const yForValue = (value) => bottom - value / 65535 * (bottom - top);
+      const xForTime = (time) => left + (time - start.getTime()) / timeRange * (right - left);
+      const valueTicks = [0, 32768, 65535];
+      context.font = "11px Inter, system-ui, sans-serif";
+      context.textBaseline = "middle";
+      context.textAlign = "right";
+
+      for (const value of valueTicks) {
+        const y = yForValue(value);
+        context.strokeStyle = "#ffffff18";
+        context.beginPath();
+        context.moveTo(left, y);
+        context.lineTo(right, y);
+        context.stroke();
+        context.fillStyle = "#8794ac";
+        context.fillText(value.toLocaleString("en-US"), left - 8, y);
+      }
+
+      const samples = historyEvents
+        .filter((event) => event.type === "ldr")
+        .map((event) => ({ time: new Date(event.timestamp).getTime(), value: event.value }))
+        .filter((event) => Number.isFinite(event.time) && Number.isInteger(event.value) &&
+          event.value >= 0 && event.value <= 65535 && event.time >= start.getTime() && event.time <= end.getTime())
+        .sort((first, second) => first.time - second.time);
+      context.textAlign = "center";
+      context.textBaseline = "top";
+      context.fillStyle = "#8794ac";
+      const dateFormat = new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short" });
+      for (let day = 0; day < 7; day += 1) {
+        const tick = new Date(start);
+        tick.setDate(start.getDate() + day);
+        const x = xForTime(tick.getTime());
+        context.fillText(dateFormat.format(tick), x, bottom + 8);
+      }
+
+      if (samples.length === 0) {
+        context.fillStyle = "#8794ac";
+        context.textBaseline = "middle";
+        context.fillText("ยังไม่มีข้อมูล LDR ในช่วง 7 วันล่าสุด", (left + right) / 2, (top + bottom) / 2);
+        return;
+      }
+
+      const maxPoints = 1200;
+      const stride = Math.max(1, Math.ceil(samples.length / maxPoints));
+      const plotted = samples.filter((_, index) => index % stride === 0 || index === samples.length - 1);
+      const gradient = context.createLinearGradient(0, top, 0, bottom);
+      gradient.addColorStop(0, "#66f1e055");
+      gradient.addColorStop(1, "#66f1e000");
+      context.beginPath();
+      plotted.forEach((sample, index) => {
+        const x = xForTime(sample.time);
+        const y = yForValue(sample.value);
+        if (index === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      if (plotted.length > 1) {
+        context.lineTo(xForTime(plotted[plotted.length - 1].time), bottom);
+        context.lineTo(xForTime(plotted[0].time), bottom);
+        context.closePath();
+        context.fillStyle = gradient;
+        context.fill();
+      }
+      context.beginPath();
+      plotted.forEach((sample, index) => {
+        const x = xForTime(sample.time);
+        const y = yForValue(sample.value);
+        if (index === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      context.strokeStyle = "#66f1e0";
+      context.lineWidth = 2;
+      context.shadowColor = "#66f1e0";
+      context.shadowBlur = 8;
+      context.stroke();
+      context.shadowBlur = 0;
+      setLdrReading(samples[samples.length - 1].value, new Date(samples[samples.length - 1].time));
+    }
+
+    async function requestHistory(path, credentials) {
+      if (!credentials) throw new Error("กรุณาเชื่อมต่อ MQTT ก่อน");
+      const response = await fetch(path, {
+        headers: {
+          Authorization: encodeBasicCredentials(credentials.username, credentials.password)
+        },
+        cache: "no-store"
+      });
+      if (response.status === 401) throw new Error("ยืนยันตัวตนเพื่ออ่านประวัติไม่สำเร็จ");
+      if (!response.ok) throw new Error(`โหลดประวัติไม่สำเร็จ (HTTP ${response.status})`);
+      return response;
+    }
+
+    async function refreshHistory() {
+      if (!historyCredentials) return;
+      const requestVersion = historyRequestVersion;
+      const credentials = historyCredentials;
+      refreshHistoryButton.disabled = true;
+      historyMessage.textContent = "กำลังโหลดประวัติ...";
+      try {
+        const response = await requestHistory("/api/history", credentials);
+        const result = await response.json();
+        if (!Array.isArray(result.events)) throw new Error("รูปแบบข้อมูลประวัติไม่ถูกต้อง");
+        if (requestVersion !== historyRequestVersion) return;
+        historyEvents = result.events;
+        renderHistoryChart();
+        renderLdrChart();
+        renderHistorySummary();
+        historyMessage.textContent = `แสดงเหตุการณ์ ${historyEvents.length} รายการใน 7 วันล่าสุด · อัปเดต ${new Date().toLocaleTimeString("th-TH")}`;
+      } catch (error) {
+        if (requestVersion === historyRequestVersion) {
+          historyMessage.textContent = `โหลดประวัติไม่สำเร็จ: ${error.message}`;
+        }
+      } finally {
+        if (requestVersion === historyRequestVersion) {
+          refreshHistoryButton.disabled = !historyCredentials;
+        }
+      }
+    }
+
+    async function downloadHistory() {
+      if (!historyCredentials) return;
+      const requestVersion = historyRequestVersion;
+      const credentials = historyCredentials;
+      downloadHistoryButton.disabled = true;
+      historyMessage.textContent = "กำลังเตรียมไฟล์ CSV...";
+      try {
+        const response = await requestHistory("/api/history.csv", credentials);
+        const blob = await response.blob();
+        if (requestVersion !== historyRequestVersion) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `led-history-${credentials.username}.csv`;
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        historyMessage.textContent = "ดาวน์โหลดประวัติ CSV แล้ว";
+      } catch (error) {
+        if (requestVersion === historyRequestVersion) {
+          historyMessage.textContent = `ดาวน์โหลด CSV ไม่สำเร็จ: ${error.message}`;
+        }
+      } finally {
+        if (requestVersion === historyRequestVersion) {
+          downloadHistoryButton.disabled = !historyCredentials;
+        }
+      }
+    }
+
+    function resetHistory() {
+      historyRequestVersion += 1;
+      historyCredentials = null;
+      historyEvents = [];
+      if (historyRefreshTimer !== null) window.clearInterval(historyRefreshTimer);
+      historyRefreshTimer = null;
+      refreshHistoryButton.disabled = true;
+      downloadHistoryButton.disabled = true;
+      renderHistoryChart();
+      renderLdrChart();
+      renderHistorySummary();
+      ldrCurrent.textContent = "--";
+      ldrUpdated.textContent = "รอข้อมูลจาก Pico W";
+      historyMessage.textContent = "เชื่อมต่อ MQTT เพื่อดูประวัติ";
+    }
+
+    function clearHistoryForUser(username, password) {
+      historyRequestVersion += 1;
+      historyCredentials = { username, password };
+      historyEvents = [];
+      renderHistoryChart();
+      renderLdrChart();
+      renderHistorySummary();
+      refreshHistoryButton.disabled = false;
+      downloadHistoryButton.disabled = false;
+      historyMessage.textContent = "กำลังตรวจสอบการเข้าถึงประวัติ...";
+      if (historyRefreshTimer !== null) window.clearInterval(historyRefreshTimer);
+      historyRefreshTimer = window.setInterval(refreshHistory, 30000);
+      refreshHistory();
+    }
+
+    refreshHistoryButton.addEventListener("click", refreshHistory);
+    downloadHistoryButton.addEventListener("click", downloadHistory);
+    window.addEventListener("resize", () => {
+      renderHistoryChart();
+      renderLdrChart();
+    });
+
+    function setConnection(state, label) {
+      connectionStatus.dataset.state = state;
+      connectionLabel.textContent = label;
+      document.querySelectorAll(".toggle").forEach((button) => {
+        const led = button.dataset.led;
+        button.disabled = state !== "online" || ledStates.get(led) === null;
+      });
+    }
+
+    function setLedState(led, value) {
+      const state = value === "ON";
+      ledStates.set(led, state);
+      const button = document.querySelector(`.toggle[data-led="${led}"]`);
+      button.setAttribute("aria-checked", String(state));
+      button.disabled = connectionStatus.dataset.state !== "online";
+      document.querySelector(`#bulb-${led}`).dataset.on = String(state);
+      document.querySelector(`#bulb-${led}`).textContent = state ? "ON" : "OFF";
+      document.querySelector(`#state-${led}`).textContent = state ? "เปิดอยู่" : "ปิดอยู่";
+    }
+
+    function setAllSwitchesDisabled(disabled) {
+      document.querySelectorAll(".toggle").forEach((button) => {
+        button.disabled = disabled || ledStates.get(button.dataset.led) === null;
+      });
+    }
+
+    function disconnect() {
+      const previousClient = activeClient;
+      activeClient = null;
+      activeTopics = null;
+      ledStates.forEach((_, led) => ledStates.set(led, null));
+      for (const led of ["1", "2", "3"]) {
+        document.querySelector(`#state-${led}`).textContent = "รอสถานะจากบอร์ด";
+        document.querySelector(`#bulb-${led}`).dataset.on = "false";
+        document.querySelector(`#bulb-${led}`).textContent = "--";
+        document.querySelector(`.toggle[data-led="${led}"]`).setAttribute("aria-checked", "false");
+      }
+      setAllSwitchesDisabled(true);
+      if (previousClient) previousClient.end(true);
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      resetHistory();
+      const host = hostInput.value.trim();
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!/^[a-zA-Z0-9.-]+$/.test(host)) {
+        message.textContent = "กรุณากรอก Broker host ให้ถูกต้อง";
+        hostInput.focus();
+        return;
+      }
+      if (!/^user\d{4}$/.test(username)) {
+        message.textContent = "Username ต้องอยู่ในรูปแบบ user1001";
+        usernameInput.focus();
+        return;
+      }
+      if (!password) {
+        message.textContent = "กรุณากรอก MQTT password";
+        passwordInput.focus();
+        return;
+      }
+      if (!window.mqtt) {
+        message.textContent = "โหลด MQTT.js ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต";
+        return;
+      }
+
+      clearHistoryForUser(username, password);
+      disconnect();
+      activeTopics = {
+        control: {},
+        status: {},
+        ldr: `classroom/${username}/sensor/ldr`
+      };
+      for (const led of ["1", "2", "3"]) {
+        activeTopics.control[led] = `classroom/${username}/control/led/${led}`;
+        activeTopics.status[led] = `classroom/${username}/status/led/${led}`;
+      }
+      connectButton.disabled = true;
+      connectButton.textContent = "กำลังเชื่อมต่อ...";
+      message.textContent = "";
+      connectionStatus.dataset.state = "connecting";
+      connectionLabel.textContent = "Connecting";
+
+      try {
+        const client = window.mqtt.connect(`ws://${host}:9001`, {
+          clean: true,
+          connectTimeout: 5000,
+          reconnectPeriod: 2000,
+          clientId: `led_dashboard_${username}_${Math.random().toString(16).slice(2, 10)}`,
+          username,
+          password
+        });
+        activeClient = client;
+
+        client.on("connect", () => {
+          if (client !== activeClient) return;
+          connectionStatus.dataset.state = "online";
+          connectionLabel.textContent = "Online";
+          connectButton.disabled = false;
+          connectButton.textContent = "เชื่อมต่อใหม่";
+          for (const led of ["1", "2", "3"]) {
+            client.subscribe(activeTopics.status[led], { qos: 1 }, (error) => {
+              if (client === activeClient && error) {
+                message.textContent = `สมัครรับสถานะ LED ${led} ไม่สำเร็จ: ${error.message}`;
+              }
+            });
+          }
+          client.subscribe(activeTopics.ldr, { qos: 1 }, (error) => {
+            if (client === activeClient && error) {
+              message.textContent = `สมัครรับข้อมูล LDR ไม่สำเร็จ: ${error.message}`;
+            }
+          });
+          setConnection("online", "Online");
+        });
+
+        client.on("message", (topic, payload) => {
+          if (client !== activeClient || !activeTopics) return;
+          if (topic === activeTopics.ldr) {
+            const value = payload.toString();
+            if (/^(0|[1-9]\d{0,4})$/.test(value) && Number(value) <= 65535) {
+              setLdrReading(Number(value));
+            } else {
+              message.textContent = "ค่า LDR จากบอร์ดไม่ถูกต้อง";
+            }
+            return;
+          }
+          for (const led of ["1", "2", "3"]) {
+            if (topic === activeTopics.status[led]) {
+              const value = payload.toString();
+              if (value === "ON" || value === "OFF") {
+                setLedState(led, value);
+                message.textContent = "";
+              } else {
+                message.textContent = `สถานะ LED ${led} ไม่ถูกต้อง`;
+              }
+              return;
+            }
+          }
+        });
+
+        client.on("reconnect", () => {
+          if (client === activeClient) setConnection("connecting", "Reconnecting");
+        });
+        client.on("offline", () => {
+          if (client === activeClient) setConnection("offline", "Offline");
+        });
+        client.on("close", () => {
+          if (client === activeClient) setConnection("offline", "Offline");
+        });
+        client.on("error", (error) => {
+          if (client !== activeClient) return;
+          setConnection("offline", "Offline");
+          connectButton.disabled = false;
+          connectButton.textContent = "ลองอีกครั้ง";
+          if (/not authorized/i.test(error.message)) {
+            message.textContent = "Broker ปฏิเสธการยืนยันตัวตน: ตรวจสอบ Username และใช้รหัสผ่านเดียวกับ username / Authentication failed: check the username and use it as the password.";
+          } else {
+            message.textContent = `เชื่อมต่อไม่สำเร็จ: ${error.message}`;
+          }
+        });
+      } catch (error) {
+        setConnection("offline", "Offline");
+        connectButton.disabled = false;
+        connectButton.textContent = "ลองอีกครั้ง";
+        message.textContent = `เริ่มการเชื่อมต่อไม่สำเร็จ: ${error.message}`;
+      }
+    });
+
+    document.querySelectorAll(".toggle").forEach((button) => {
+      button.addEventListener("click", () => {
+        const client = activeClient;
+        const led = button.dataset.led;
+        const currentState = ledStates.get(led);
+        if (!client || !client.connected || currentState === null || !activeTopics) return;
+
+        const command = currentState ? "OFF" : "ON";
+        button.disabled = true;
+        client.publish(activeTopics.control[led], command, { qos: 1, retain: false }, (error) => {
+          if (client !== activeClient) return;
+          if (error) {
+            message.textContent = `ส่งคำสั่ง LED ${led} ไม่สำเร็จ: ${error.message}`;
+            button.disabled = false;
+            return;
+          }
+          message.textContent = `ส่งคำสั่ง ${command} ไปยัง LED ${led} แล้ว รอสถานะยืนยันจากบอร์ด`;
+        });
+      });
+    });
+  </script>
+</body>
+</html>
